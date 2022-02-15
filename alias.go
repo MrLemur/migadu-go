@@ -26,7 +26,7 @@ type aliasJSON struct {
 	DestinationsJSON string `json:"destinations,omitempty"`
 }
 
-// convertDestinationsField takes a slice of strings and joins them into a comma seperated line.
+// convertDestinationsField takes a slice of strings and joins them into a comma separated line.
 func (a *aliasJSON) convertDestinationsField() {
 	a.DestinationsJSON = strings.Join(a.Destinations, ",")
 	a.Destinations = nil

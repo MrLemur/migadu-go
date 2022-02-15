@@ -22,7 +22,7 @@ type rewriteJSON struct {
 	DestinationsJSON string `json:"destinations,omitempty"`
 }
 
-// convertDestinationsField takes a slice of strings and joins them into a comma seperated line.
+// convertDestinationsField takes a slice of strings and joins them into a comma separated line.
 func (r *rewriteJSON) convertDestinationsField() {
 	r.DestinationsJSON = strings.Join(r.Destinations, ",")
 	r.Destinations = nil
