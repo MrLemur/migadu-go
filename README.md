@@ -1,5 +1,8 @@
 # Migadu API in Go
 
+[![GoDoc](https://img.shields.io/badge/pkg.go.dev-doc-blue)](http://pkg.go.dev/github.com/MrLemur/migadu-go)
+[![Go Report Card](https://goreportcard.com/badge/github.com/MrLemur/migadu-go)](https://goreportcard.com/report/github.com/MrLemur/migadu-go)
+
 `migadu-go` is a Go library for interfacing with the [Migadu API](https://www.migadu.com/api/). It currently supports all endpoints available through the REST API.
 
 - [Installing](#installing)
