@@ -77,12 +77,18 @@ func (c *Client) GetMailbox(ctx context.Context, localPart string) (*Mailbox, er
 	return &mailbox, nil
 }
 
-// NewMailbox creates a new mailbox given the local part, a display name and invitation email.
-// An email will be sent to the email asking the user to set up a password.
+// NewMailbox creates a new mailbox given the local part, a display name, an invitation email and an optional password.
+// An email will be sent to the email asking the user to set up a password. If a password is specified, the email will be used as the password recovery email.
 // It returns a pointer to a Mailbox struct and any error encountered.
-func (c *Client) NewMailbox(ctx context.Context, localPart string, displayName string, invitationEmail string) (*Mailbox, error) {
+func (c *Client) NewMailbox(ctx context.Context, localPart string, displayName string, invitationEmail string, initialPassword string) (*Mailbox, error) {
 
-	var mailbox = Mailbox{LocalPart: localPart, Name: displayName, PasswordRecoveryEmail: invitationEmail, PasswordMethod: "invitation"}
+	var mailbox = Mailbox{LocalPart: localPart, Name: displayName, PasswordRecoveryEmail: invitationEmail}
+
+	if initialPassword != "" {
+		mailbox.PasswordMethod = "password"
+	} else {
+		mailbox.PasswordMethod = "invitation"
+	}
 
 	jsonBody, _ := json.Marshal(mailbox)
 	resp, err := c.Post(ctx, "mailboxes", jsonBody)
