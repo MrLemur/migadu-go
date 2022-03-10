@@ -32,6 +32,7 @@ type Mailbox struct {
 	MayReceive            bool       `json:"may_receive,omitempty"`
 	MaySend               bool       `json:"may_send,omitempty"`
 	Name                  string     `json:"name,omitempty"`
+	Password              string     `json:"password,omitempty"`
 	PasswordMethod        string     `json:"password_method,omitempty"`
 	PasswordRecoveryEmail string     `json:"password_recovery_email,omitempty"`
 	RecipientDenylist     []string   `json:"recipient_denylist,omitempty"`
@@ -86,6 +87,7 @@ func (c *Client) NewMailbox(ctx context.Context, localPart string, displayName s
 
 	if initialPassword != "" {
 		mailbox.PasswordMethod = "password"
+		mailbox.Password = initialPassword
 	} else {
 		mailbox.PasswordMethod = "invitation"
 	}
