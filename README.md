@@ -111,6 +111,14 @@ All require `*Domain` as first parameter after context:
 - `UpdateMailbox(ctx, *Domain, *Mailbox)` → `*Mailbox`
 - `DeleteMailbox(ctx, *Domain, *Mailbox)` → `error`
 
+**Forwardings:**
+
+- `ListForwardings(ctx, *Domain, mailbox)` → `[]Forwarding`
+- `GetForwarding(ctx, *Domain, mailbox, address)` → `*Forwarding`
+- `NewForwarding(ctx, *Domain, mailbox, *Forwarding)` → `*Forwarding`
+- `UpdateForwarding(ctx, *Domain, mailbox, *Forwarding)` → `*Forwarding`
+- `DeleteForwarding(ctx, *Domain, mailbox, *Forwarding)` → `error`
+
 **Aliases:**
 
 - `ListAliases(ctx, *Domain)` → `[]Alias`
