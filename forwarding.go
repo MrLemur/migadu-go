@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
 )
 
 // Forwarding represents a mailbox forwarding in the Migadu API.
@@ -19,6 +18,24 @@ type Forwarding struct {
 	RemoveUponExpiry   *bool   `json:"remove_upon_expiry,omitempty"`
 }
 
+// Create returns a request-safe copy for forwarding create operations.
+func (f Forwarding) Create() Forwarding {
+	f.BlockedAt = nil
+	f.ConfirmationSentAt = nil
+	f.ConfirmedAt = nil
+	f.ExpiresOn = nil
+	f.IsActive = nil
+	f.RemoveUponExpiry = nil
+	return f
+}
+
+// Update returns a request-safe copy for forwarding update operations.
+func (f Forwarding) Update() Forwarding {
+	f = f.Create()
+	f.Address = ""
+	return f
+}
+
 // ListForwardings lists all forwardings for the given domain and mailbox.
 // It returns a slice of Forwarding structs and any error encountered.
 func (c *Client) ListForwardings(ctx context.Context, domain *Domain, mailbox string) ([]Forwarding, error) {
@@ -27,7 +44,7 @@ func (c *Client) ListForwardings(ctx context.Context, domain *Domain, mailbox st
 		Forwardings []Forwarding `json:"forwardings,omitempty"`
 	}
 
-	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/forwardings", domain.Name, mailbox))
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/forwardings", escapePathSegment(domain.Name), escapePathSegment(mailbox)))
 	if err != nil {
 		return nil, err
 	}
@@ -48,8 +65,8 @@ func (c *Client) GetForwarding(ctx context.Context, domain *Domain, mailbox stri
 
 	var forwarding Forwarding
 
-	escapedAddress := url.PathEscape(address)
-	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/forwardings/%s", domain.Name, mailbox, escapedAddress))
+	escapedAddress := escapePathSegment(address)
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/forwardings/%s", escapePathSegment(domain.Name), escapePathSegment(mailbox), escapedAddress))
 	if err != nil {
 		return nil, err
 	}
@@ -67,11 +84,11 @@ func (c *Client) GetForwarding(ctx context.Context, domain *Domain, mailbox stri
 // NewForwarding creates a new forwarding.
 // It returns a pointer to a Forwarding struct and any error encountered.
 func (c *Client) NewForwarding(ctx context.Context, domain *Domain, mailbox string, forwarding *Forwarding) (*Forwarding, error) {
-	jsonBody, err := json.Marshal(forwarding)
+	jsonBody, err := json.Marshal(forwarding.Create())
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Post(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/forwardings", domain.Name, mailbox), jsonBody)
+	resp, err := c.Post(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/forwardings", escapePathSegment(domain.Name), escapePathSegment(mailbox)), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -88,12 +105,12 @@ func (c *Client) NewForwarding(ctx context.Context, domain *Domain, mailbox stri
 // UpdateForwarding updates a forwarding in place given the domain, mailbox and a pointer to a Forwarding struct.
 // It returns a pointer to a new Forwarding struct and any error encountered.
 func (c *Client) UpdateForwarding(ctx context.Context, domain *Domain, mailbox string, f *Forwarding) (*Forwarding, error) {
-	jsonBody, err := json.Marshal(f)
+	jsonBody, err := json.Marshal(f.Update())
 	if err != nil {
 		return nil, err
 	}
-	escapedAddress := url.PathEscape(f.Address)
-	resp, err := c.Put(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/forwardings/%s", domain.Name, mailbox, escapedAddress), jsonBody)
+	escapedAddress := escapePathSegment(f.Address)
+	resp, err := c.Put(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/forwardings/%s", escapePathSegment(domain.Name), escapePathSegment(mailbox), escapedAddress), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +118,7 @@ func (c *Client) UpdateForwarding(ctx context.Context, domain *Domain, mailbox s
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(body, &f); err != nil {
+	if err = json.Unmarshal(body, f); err != nil {
 		return nil, err
 	}
 	return f, nil
@@ -110,8 +127,8 @@ func (c *Client) UpdateForwarding(ctx context.Context, domain *Domain, mailbox s
 // DeleteForwarding deletes a forwarding given the domain, mailbox and a pointer to a Forwarding struct.
 // It returns any error encountered.
 func (c *Client) DeleteForwarding(ctx context.Context, domain *Domain, mailbox string, f *Forwarding) error {
-	escapedAddress := url.PathEscape(f.Address)
-	_, err := c.Delete(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/forwardings/%s", domain.Name, mailbox, escapedAddress))
+	escapedAddress := escapePathSegment(f.Address)
+	_, err := c.Delete(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/forwardings/%s", escapePathSegment(domain.Name), escapePathSegment(mailbox), escapedAddress))
 	if err != nil {
 		return err
 	}

@@ -22,6 +22,7 @@ type Mailbox struct {
 	FooterActive          bool       `json:"footer_active,omitempty"`
 	FooterHTMLBody        string     `json:"footer_html_body,omitempty"`
 	FooterPlainBody       string     `json:"footer_plain_body,omitempty"`
+	ForwardingTo          string     `json:"forwarding_to,omitempty"`
 	Identities            []Identity `json:"identities,omitempty"`
 	IsInternal            bool       `json:"is_internal,omitempty"`
 	LastLoginAt           string     `json:"last_login_at,omitempty"`

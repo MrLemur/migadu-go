@@ -96,6 +96,7 @@ Domain management operations:
 - `NewDomain(ctx, *Domain)` → `*Domain`
 - `UpdateDomain(ctx, *Domain)` → `*Domain`
 - `GetDomainRecords(ctx, *Domain)` → `[]DNSRecord`
+- `GetDomainRecordsDetailed(ctx, *Domain)` → `*DomainRecords`
 - `GetDomainDiagnostics(ctx, *Domain)` → `*DomainDiagnostics`
 - `ActivateDomain(ctx, *Domain)` → `*Domain`
 

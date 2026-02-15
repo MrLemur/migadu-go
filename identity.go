@@ -24,15 +24,29 @@ type Identity struct {
 	Password             string `json:"password,omitempty"`
 }
 
+// Create returns a request-safe copy for identity create operations.
+func (i Identity) Create() Identity {
+	i.Address = ""
+	i.DomainName = ""
+	return i
+}
+
+// Update returns a request-safe copy for identity update operations.
+func (i Identity) Update() Identity {
+	i = i.Create()
+	i.LocalPart = ""
+	return i
+}
+
 // ListIdentities lists all the identities for the given domain and mailbox.
 // It returns a slice of Identity structs and any error encountered.
 func (c *Client) ListIdentities(ctx context.Context, domain *Domain, mailbox string) ([]Identity, error) {
 
 	var identityList struct {
-		Indentities []Identity `json:"identities,omitempty"`
+		Identities []Identity `json:"identities,omitempty"`
 	}
 
-	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities", domain.Name, mailbox))
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities", escapePathSegment(domain.Name), escapePathSegment(mailbox)))
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +58,7 @@ func (c *Client) ListIdentities(ctx context.Context, domain *Domain, mailbox str
 		return nil, err
 	}
 
-	return identityList.Indentities, nil
+	return identityList.Identities, nil
 }
 
 // GetIdentity retrieves a single identity given the domain, mailbox and local part name.
@@ -53,7 +67,7 @@ func (c *Client) GetIdentity(ctx context.Context, domain *Domain, mailbox string
 
 	var identity Identity
 
-	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities/%s", domain.Name, mailbox, localPart))
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities/%s", escapePathSegment(domain.Name), escapePathSegment(mailbox), escapePathSegment(localPart)))
 	if err != nil {
 		return nil, err
 	}
@@ -72,11 +86,11 @@ func (c *Client) GetIdentity(ctx context.Context, domain *Domain, mailbox string
 // It returns a pointer to an Identity struct and any error encountered.
 func (c *Client) NewIdentity(ctx context.Context, domain *Domain, mailbox string, identity *Identity) (*Identity, error) {
 
-	jsonBody, err := json.Marshal(identity)
+	jsonBody, err := json.Marshal(identity.Create())
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Post(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities", domain.Name, mailbox), jsonBody)
+	resp, err := c.Post(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities", escapePathSegment(domain.Name), escapePathSegment(mailbox)), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -93,11 +107,11 @@ func (c *Client) NewIdentity(ctx context.Context, domain *Domain, mailbox string
 // UpdateIdentity updates an identity in place given the domain, mailbox and a pointer to an Identity struct.
 // It returns a pointer to a new Identity struct and any error encountered.
 func (c *Client) UpdateIdentity(ctx context.Context, domain *Domain, mailbox string, i *Identity) (*Identity, error) {
-	jsonBody, err := json.Marshal(i)
+	jsonBody, err := json.Marshal(i.Update())
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Put(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities/%s", domain.Name, mailbox, i.LocalPart), jsonBody)
+	resp, err := c.Put(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities/%s", escapePathSegment(domain.Name), escapePathSegment(mailbox), escapePathSegment(i.LocalPart)), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +119,7 @@ func (c *Client) UpdateIdentity(ctx context.Context, domain *Domain, mailbox str
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(body, &i); err != nil {
+	if err = json.Unmarshal(body, i); err != nil {
 		return nil, err
 	}
 	return i, nil
@@ -114,7 +128,7 @@ func (c *Client) UpdateIdentity(ctx context.Context, domain *Domain, mailbox str
 // DeleteIdentity deletes an identity given the domain, mailbox and a pointer to an Identity struct.
 // It returns any error encountered.
 func (c *Client) DeleteIdentity(ctx context.Context, domain *Domain, mailbox string, i *Identity) error {
-	_, err := c.Delete(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities/%s", domain.Name, mailbox, i.LocalPart))
+	_, err := c.Delete(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities/%s", escapePathSegment(domain.Name), escapePathSegment(mailbox), escapePathSegment(i.LocalPart)))
 	if err != nil {
 		return err
 	}

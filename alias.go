@@ -10,26 +10,64 @@ import (
 
 // Alias represents an alias in the Migadu API.
 type Alias struct {
-	Address          string   `json:"address,omitempty"`
-	Destinations     []string `json:"destinations,omitempty"`
-	DomainName       string   `json:"domain_name,omitempty"`
-	Expireable       bool     `json:"expireable,omitempty"`
-	ExpiresOn        string   `json:"expires_on,omitempty"`
-	IsInternal       bool     `json:"is_internal,omitempty"`
-	LocalPart        string   `json:"local_part,omitempty"`
-	RemoveUponExpiry bool     `json:"remove_upon_expiry,omitempty"`
+	Address      string `json:"address,omitempty"`
+	Destinations string `json:"destinations,omitempty"`
+	DomainName   string `json:"domain_name,omitempty"`
+	IsInternal   bool   `json:"is_internal,omitempty"`
+	LocalPart    string `json:"local_part,omitempty"`
 }
 
-// aliasJSON is used when a new/updated alias object to the API.
-type aliasJSON struct {
-	Alias
-	DestinationsJSON string `json:"destinations,omitempty"`
+func (a *Alias) UnmarshalJSON(data []byte) error {
+	type alias Alias
+	type rawAlias struct {
+		alias
+		Destinations json.RawMessage `json:"destinations"`
+	}
+
+	var raw rawAlias
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	*a = Alias(raw.alias)
+	dest, err := parseDestinations(raw.Destinations)
+	if err != nil {
+		return err
+	}
+	a.Destinations = dest
+	return nil
 }
 
-// convertDestinationsField takes a slice of strings and joins them into a comma separated line.
-func (a *aliasJSON) convertDestinationsField() {
-	a.DestinationsJSON = strings.Join(a.Destinations, ",")
-	a.Destinations = nil
+func parseDestinations(data json.RawMessage) (string, error) {
+	if len(data) == 0 || string(data) == "null" {
+		return "", nil
+	}
+
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		return s, nil
+	}
+
+	var arr []string
+	if err := json.Unmarshal(data, &arr); err == nil {
+		return strings.Join(arr, ","), nil
+	}
+
+	return "", fmt.Errorf("unsupported destinations format: %s", string(data))
+}
+
+// Create returns a request-safe copy for alias create operations.
+func (a Alias) Create() Alias {
+	a.Address = ""
+	a.DomainName = ""
+	return a
+}
+
+// Update returns a request-safe copy for alias update operations.
+func (a Alias) Update() Alias {
+	a = a.Create()
+	a.LocalPart = ""
+	return a
 }
 
 // ListAliases lists all the aliases for the given domain.
@@ -40,7 +78,7 @@ func (c *Client) ListAliases(ctx context.Context, domain *Domain) ([]Alias, erro
 		Aliases []Alias `json:"address_aliases,omitempty"`
 	}
 
-	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/aliases", domain.Name))
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/aliases", escapePathSegment(domain.Name)))
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +99,7 @@ func (c *Client) GetAlias(ctx context.Context, domain *Domain, localPart string)
 
 	var alias Alias
 
-	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/aliases/%s", domain.Name, localPart))
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/aliases/%s", escapePathSegment(domain.Name), escapePathSegment(localPart)))
 	if err != nil {
 		return nil, err
 	}
@@ -79,13 +117,11 @@ func (c *Client) GetAlias(ctx context.Context, domain *Domain, localPart string)
 // NewAlias creates a new alias.
 // It returns a pointer to an Alias struct and any error encountered.
 func (c *Client) NewAlias(ctx context.Context, domain *Domain, alias *Alias) (*Alias, error) {
-	aliasJSON := aliasJSON{Alias: *alias}
-	aliasJSON.convertDestinationsField()
-	jsonBody, err := json.Marshal(aliasJSON)
+	jsonBody, err := json.Marshal(alias.Create())
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Post(ctx, fmt.Sprintf("domains/%s/aliases", domain.Name), jsonBody)
+	resp, err := c.Post(ctx, fmt.Sprintf("domains/%s/aliases", escapePathSegment(domain.Name)), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -102,13 +138,11 @@ func (c *Client) NewAlias(ctx context.Context, domain *Domain, alias *Alias) (*A
 // UpdateAlias updates an alias in place given the domain and a pointer to an Alias struct.
 // It returns a pointer to a new Alias struct and any error encountered.
 func (c *Client) UpdateAlias(ctx context.Context, domain *Domain, a *Alias) (*Alias, error) {
-	aliasJSON := aliasJSON{Alias: *a}
-	aliasJSON.convertDestinationsField()
-	jsonBody, err := json.Marshal(aliasJSON)
+	jsonBody, err := json.Marshal(a.Update())
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Put(ctx, fmt.Sprintf("domains/%s/aliases/%s", domain.Name, a.LocalPart), jsonBody)
+	resp, err := c.Put(ctx, fmt.Sprintf("domains/%s/aliases/%s", escapePathSegment(domain.Name), escapePathSegment(a.LocalPart)), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +150,7 @@ func (c *Client) UpdateAlias(ctx context.Context, domain *Domain, a *Alias) (*Al
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(body, &a); err != nil {
+	if err = json.Unmarshal(body, a); err != nil {
 		return nil, err
 	}
 	return a, nil
@@ -125,7 +159,7 @@ func (c *Client) UpdateAlias(ctx context.Context, domain *Domain, a *Alias) (*Al
 // DeleteAlias deletes an alias given the domain and a pointer to an Alias struct.
 // It returns any error encountered.
 func (c *Client) DeleteAlias(ctx context.Context, domain *Domain, a *Alias) error {
-	_, err := c.Delete(ctx, fmt.Sprintf("domains/%s/aliases/%s", domain.Name, a.LocalPart))
+	_, err := c.Delete(ctx, fmt.Sprintf("domains/%s/aliases/%s", escapePathSegment(domain.Name), escapePathSegment(a.LocalPart)))
 	if err != nil {
 		return err
 	}
