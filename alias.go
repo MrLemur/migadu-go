@@ -32,15 +32,15 @@ func (a *aliasJSON) convertDestinationsField() {
 	a.Destinations = nil
 }
 
-// ListAliases lists all the aliases for the domain configured on the client.
-// Ir returns a pointer to an array of Alias structs and any error encountered.
-func (c *Client) ListAliases(ctx context.Context) (*[]Alias, error) {
+// ListAliases lists all the aliases for the given domain.
+// It returns a slice of Alias structs and any error encountered.
+func (c *Client) ListAliases(ctx context.Context, domain *Domain) ([]Alias, error) {
 
 	var aliasList struct {
 		Aliases []Alias `json:"address_aliases,omitempty"`
 	}
 
-	resp, err := c.Get(ctx, "aliases")
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/aliases", domain.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -52,16 +52,16 @@ func (c *Client) ListAliases(ctx context.Context) (*[]Alias, error) {
 		return nil, err
 	}
 
-	return &aliasList.Aliases, nil
+	return aliasList.Aliases, nil
 }
 
-// GetAlias retrieves a single alias given its local part name.
+// GetAlias retrieves a single alias given the domain and local part name.
 // It returns a pointer to an Alias struct and any error encountered.
-func (c *Client) GetAlias(ctx context.Context, localPart string) (*Alias, error) {
+func (c *Client) GetAlias(ctx context.Context, domain *Domain, localPart string) (*Alias, error) {
 
 	var alias Alias
 
-	resp, err := c.Get(ctx, fmt.Sprintf("aliases/%s", localPart))
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/aliases/%s", domain.Name, localPart))
 	if err != nil {
 		return nil, err
 	}
@@ -76,17 +76,16 @@ func (c *Client) GetAlias(ctx context.Context, localPart string) (*Alias, error)
 	return &alias, nil
 }
 
-// NewAlias creates a new alias given the local part name and its destinations.
+// NewAlias creates a new alias.
 // It returns a pointer to an Alias struct and any error encountered.
-func (c *Client) NewAlias(ctx context.Context, localPart string, destinations []string) (*Alias, error) {
-	var alias = Alias{LocalPart: localPart, Destinations: destinations}
-	aliasJSON := aliasJSON{Alias: alias}
+func (c *Client) NewAlias(ctx context.Context, domain *Domain, alias *Alias) (*Alias, error) {
+	aliasJSON := aliasJSON{Alias: *alias}
 	aliasJSON.convertDestinationsField()
 	jsonBody, err := json.Marshal(aliasJSON)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Post(ctx, "aliases", jsonBody)
+	resp, err := c.Post(ctx, fmt.Sprintf("domains/%s/aliases", domain.Name), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -94,22 +93,22 @@ func (c *Client) NewAlias(ctx context.Context, localPart string, destinations []
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(body, &alias); err != nil {
+	if err = json.Unmarshal(body, alias); err != nil {
 		return nil, err
 	}
-	return &alias, nil
+	return alias, nil
 }
 
-// UpdateAlias updates an alias in place given a pointer to an Alias struct.
+// UpdateAlias updates an alias in place given the domain and a pointer to an Alias struct.
 // It returns a pointer to a new Alias struct and any error encountered.
-func (c *Client) UpdateAlias(ctx context.Context, a *Alias) (*Alias, error) {
+func (c *Client) UpdateAlias(ctx context.Context, domain *Domain, a *Alias) (*Alias, error) {
 	aliasJSON := aliasJSON{Alias: *a}
 	aliasJSON.convertDestinationsField()
 	jsonBody, err := json.Marshal(aliasJSON)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Put(ctx, fmt.Sprintf("aliases/%s", a.LocalPart), jsonBody)
+	resp, err := c.Put(ctx, fmt.Sprintf("domains/%s/aliases/%s", domain.Name, a.LocalPart), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -123,10 +122,10 @@ func (c *Client) UpdateAlias(ctx context.Context, a *Alias) (*Alias, error) {
 	return a, nil
 }
 
-// DeleteAlias deletes an alias given a pointer to an Alias struct.
+// DeleteAlias deletes an alias given the domain and a pointer to an Alias struct.
 // It returns any error encountered.
-func (c *Client) DeleteAlias(ctx context.Context, a *Alias) error {
-	_, err := c.Delete(ctx, fmt.Sprintf("aliases/%s", a.LocalPart))
+func (c *Client) DeleteAlias(ctx context.Context, domain *Domain, a *Alias) error {
+	_, err := c.Delete(ctx, fmt.Sprintf("domains/%s/aliases/%s", domain.Name, a.LocalPart))
 	if err != nil {
 		return err
 	}

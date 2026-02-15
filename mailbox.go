@@ -44,15 +44,15 @@ type Mailbox struct {
 	StorageUsage          float64    `json:"storage_usage,omitempty"`
 }
 
-// ListMailboxes lists all the mailboxes for the domain configured on the client.
-// Ir returns a pointer to an array of Mailbox structs and any error encountered.
-func (c *Client) ListMailboxes(ctx context.Context) (*[]Mailbox, error) {
+// ListMailboxes lists all the mailboxes for the given domain.
+// It returns a slice of Mailbox structs and any error encountered.
+func (c *Client) ListMailboxes(ctx context.Context, domain *Domain) ([]Mailbox, error) {
 
 	var mailboxList struct {
 		Mailboxes []Mailbox `json:"mailboxes,omitempty"`
 	}
 
-	resp, err := c.Get(ctx, "mailboxes")
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/mailboxes", domain.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -64,16 +64,16 @@ func (c *Client) ListMailboxes(ctx context.Context) (*[]Mailbox, error) {
 		return nil, err
 	}
 
-	return &mailboxList.Mailboxes, nil
+	return mailboxList.Mailboxes, nil
 }
 
-// GetMailbox retrieves a single mailbox given its local part name.
+// GetMailbox retrieves a single mailbox given the domain and local part name.
 // It returns a pointer to a Mailbox struct and any error encountered.
-func (c *Client) GetMailbox(ctx context.Context, localPart string) (*Mailbox, error) {
+func (c *Client) GetMailbox(ctx context.Context, domain *Domain, localPart string) (*Mailbox, error) {
 
 	var mailbox Mailbox
 
-	resp, err := c.Get(ctx, fmt.Sprintf("mailboxes/%s", localPart))
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/mailboxes/%s", domain.Name, localPart))
 	if err != nil {
 		return nil, err
 	}
@@ -88,25 +88,15 @@ func (c *Client) GetMailbox(ctx context.Context, localPart string) (*Mailbox, er
 	return &mailbox, nil
 }
 
-// NewMailbox creates a new mailbox given the local part, a display name, an invitation email and an optional password.
-// An email will be sent to the email asking the user to set up a password. If a password is specified, the email will be used as the password recovery email.
+// NewMailbox creates a new mailbox.
 // It returns a pointer to a Mailbox struct and any error encountered.
-func (c *Client) NewMailbox(ctx context.Context, localPart string, displayName string, invitationEmail string, initialPassword string) (*Mailbox, error) {
-
-	var mailbox = Mailbox{LocalPart: localPart, Name: displayName, PasswordRecoveryEmail: invitationEmail}
-
-	if initialPassword != "" {
-		mailbox.PasswordMethod = "password"
-		mailbox.Password = initialPassword
-	} else {
-		mailbox.PasswordMethod = "invitation"
-	}
+func (c *Client) NewMailbox(ctx context.Context, domain *Domain, mailbox *Mailbox) (*Mailbox, error) {
 
 	jsonBody, err := json.Marshal(mailbox)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Post(ctx, "mailboxes", jsonBody)
+	resp, err := c.Post(ctx, fmt.Sprintf("domains/%s/mailboxes", domain.Name), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -114,20 +104,20 @@ func (c *Client) NewMailbox(ctx context.Context, localPart string, displayName s
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(body, &mailbox); err != nil {
+	if err = json.Unmarshal(body, mailbox); err != nil {
 		return nil, err
 	}
-	return &mailbox, nil
+	return mailbox, nil
 }
 
-// UpdateMailbox updates a mailbox in place given a pointer to a Mailbox struct.
+// UpdateMailbox updates a mailbox in place given the domain and a pointer to a Mailbox struct.
 // It returns a pointer to a new Mailbox struct and any error encountered.
-func (c *Client) UpdateMailbox(ctx context.Context, mb *Mailbox) (*Mailbox, error) {
+func (c *Client) UpdateMailbox(ctx context.Context, domain *Domain, mb *Mailbox) (*Mailbox, error) {
 	jsonBody, err := json.Marshal(mb)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Put(ctx, fmt.Sprintf("mailboxes/%s", mb.LocalPart), jsonBody)
+	resp, err := c.Put(ctx, fmt.Sprintf("domains/%s/mailboxes/%s", domain.Name, mb.LocalPart), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -141,10 +131,10 @@ func (c *Client) UpdateMailbox(ctx context.Context, mb *Mailbox) (*Mailbox, erro
 	return mb, nil
 }
 
-// DeleteMailbox deletes a mailbox given a pointer to a Mailbox struct.
+// DeleteMailbox deletes a mailbox given the domain and a pointer to a Mailbox struct.
 // It returns any error encountered.
-func (c *Client) DeleteMailbox(ctx context.Context, mb *Mailbox) error {
-	_, err := c.Delete(ctx, fmt.Sprintf("mailboxes/%s", mb.LocalPart))
+func (c *Client) DeleteMailbox(ctx context.Context, domain *Domain, mb *Mailbox) error {
+	_, err := c.Delete(ctx, fmt.Sprintf("domains/%s/mailboxes/%s", domain.Name, mb.LocalPart))
 	if err != nil {
 		return err
 	}

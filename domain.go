@@ -1,13 +1,10 @@
 package migadu
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"time"
 )
 
 // Domain represents a domain in the Migadu API.
@@ -42,48 +39,13 @@ type DomainDiagnostics struct {
 	DMARC []string `json:"dmarc,omitempty"`
 }
 
-// apiRequest makes an HTTP request to the root API endpoint (not domain-scoped).
-func (c *Client) apiRequest(ctx context.Context, method string, path string, body []byte) (*http.Response, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(time.Second*120))
-	defer cancel()
-
-	urlPath := fmt.Sprintf("https://api.migadu.com/v1/%s", path)
-	var req *http.Request
-	var err error
-
-	if body != nil {
-		req, err = http.NewRequestWithContext(ctx, method, urlPath, bytes.NewBuffer(body))
-	} else {
-		req, err = http.NewRequestWithContext(ctx, method, urlPath, nil)
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	req.SetBasicAuth(c.Email, c.APIKey)
-	if body != nil {
-		req.Header.Add("Content-Type", "application/json")
-	}
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("status code %d is not 200", resp.StatusCode)
-	}
-
-	return resp, nil
-}
-
 // ListDomains lists all domains for the account.
-func (c *Client) ListDomains(ctx context.Context) (*[]Domain, error) {
+func (c *Client) ListDomains(ctx context.Context) ([]Domain, error) {
 	var domainList struct {
 		Domains []Domain `json:"domains,omitempty"`
 	}
 
-	resp, err := c.apiRequest(ctx, http.MethodGet, "domains", nil)
+	resp, err := c.Get(ctx, "domains")
 	if err != nil {
 		return nil, err
 	}
@@ -95,14 +57,12 @@ func (c *Client) ListDomains(ctx context.Context) (*[]Domain, error) {
 		return nil, err
 	}
 
-	return &domainList.Domains, nil
+	return domainList.Domains, nil
 }
 
-// GetDomain retrieves a single domain given its name.
-func (c *Client) GetDomain(ctx context.Context, name string) (*Domain, error) {
-	var domain Domain
-
-	resp, err := c.apiRequest(ctx, http.MethodGet, fmt.Sprintf("domains/%s", name), nil)
+// GetDomain retrieves a single domain.
+func (c *Client) GetDomain(ctx context.Context, domain *Domain) (*Domain, error) {
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s", domain.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -110,22 +70,20 @@ func (c *Client) GetDomain(ctx context.Context, name string) (*Domain, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(body, &domain); err != nil {
+	if err = json.Unmarshal(body, domain); err != nil {
 		return nil, err
 	}
 
-	return &domain, nil
+	return domain, nil
 }
 
-// NewDomain creates a new domain given its name.
-func (c *Client) NewDomain(ctx context.Context, name string) (*Domain, error) {
-	var domain = Domain{Name: name}
-
+// NewDomain creates a new domain.
+func (c *Client) NewDomain(ctx context.Context, domain *Domain) (*Domain, error) {
 	jsonBody, err := json.Marshal(domain)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.apiRequest(ctx, http.MethodPost, "domains", jsonBody)
+	resp, err := c.Post(ctx, "domains", jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -133,11 +91,11 @@ func (c *Client) NewDomain(ctx context.Context, name string) (*Domain, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(body, &domain); err != nil {
+	if err = json.Unmarshal(body, domain); err != nil {
 		return nil, err
 	}
 
-	return &domain, nil
+	return domain, nil
 }
 
 // UpdateDomain updates a domain in place given a pointer to a Domain struct.
@@ -146,7 +104,7 @@ func (c *Client) UpdateDomain(ctx context.Context, d *Domain) (*Domain, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.apiRequest(ctx, http.MethodPatch, fmt.Sprintf("domains/%s", d.Name), jsonBody)
+	resp, err := c.Patch(ctx, fmt.Sprintf("domains/%s", d.Name), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -162,12 +120,12 @@ func (c *Client) UpdateDomain(ctx context.Context, d *Domain) (*Domain, error) {
 }
 
 // GetDomainRecords retrieves the DNS records needed for a domain.
-func (c *Client) GetDomainRecords(ctx context.Context, name string) (*[]DNSRecord, error) {
+func (c *Client) GetDomainRecords(ctx context.Context, domain *Domain) ([]DNSRecord, error) {
 	var recordList struct {
 		Records []DNSRecord `json:"records,omitempty"`
 	}
 
-	resp, err := c.apiRequest(ctx, http.MethodGet, fmt.Sprintf("domains/%s/records", name), nil)
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/records", domain.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -179,14 +137,14 @@ func (c *Client) GetDomainRecords(ctx context.Context, name string) (*[]DNSRecor
 		return nil, err
 	}
 
-	return &recordList.Records, nil
+	return recordList.Records, nil
 }
 
 // GetDomainDiagnostics runs DNS validation checks for a domain.
-func (c *Client) GetDomainDiagnostics(ctx context.Context, name string) (*DomainDiagnostics, error) {
+func (c *Client) GetDomainDiagnostics(ctx context.Context, domain *Domain) (*DomainDiagnostics, error) {
 	var diagnostics DomainDiagnostics
 
-	resp, err := c.apiRequest(ctx, http.MethodGet, fmt.Sprintf("domains/%s/diagnostics", name), nil)
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/diagnostics", domain.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -202,10 +160,8 @@ func (c *Client) GetDomainDiagnostics(ctx context.Context, name string) (*Domain
 }
 
 // ActivateDomain activates a domain after DNS setup is complete.
-func (c *Client) ActivateDomain(ctx context.Context, name string) (*Domain, error) {
-	var domain Domain
-
-	resp, err := c.apiRequest(ctx, http.MethodGet, fmt.Sprintf("domains/%s/activate", name), nil)
+func (c *Client) ActivateDomain(ctx context.Context, domain *Domain) (*Domain, error) {
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/activate", domain.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -213,9 +169,9 @@ func (c *Client) ActivateDomain(ctx context.Context, name string) (*Domain, erro
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(body, &domain); err != nil {
+	if err = json.Unmarshal(body, domain); err != nil {
 		return nil, err
 	}
 
-	return &domain, nil
+	return domain, nil
 }

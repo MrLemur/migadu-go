@@ -24,15 +24,15 @@ type Identity struct {
 	Password             string `json:"password,omitempty"`
 }
 
-// ListIdentities lists all the identities for the given mailbox local part name.
-// Ir returns a pointer to an array of Identity structs and any error encountered.
-func (c *Client) ListIdentities(ctx context.Context, mailbox string) (*[]Identity, error) {
+// ListIdentities lists all the identities for the given domain and mailbox.
+// It returns a slice of Identity structs and any error encountered.
+func (c *Client) ListIdentities(ctx context.Context, domain *Domain, mailbox string) ([]Identity, error) {
 
 	var identityList struct {
 		Indentities []Identity `json:"identities,omitempty"`
 	}
 
-	resp, err := c.Get(ctx, fmt.Sprintf("mailboxes/%s/identities", mailbox))
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities", domain.Name, mailbox))
 	if err != nil {
 		return nil, err
 	}
@@ -44,16 +44,16 @@ func (c *Client) ListIdentities(ctx context.Context, mailbox string) (*[]Identit
 		return nil, err
 	}
 
-	return &identityList.Indentities, nil
+	return identityList.Indentities, nil
 }
 
-// GetIdentity  retrieves a single identity given its mailbox name and local part name.
+// GetIdentity retrieves a single identity given the domain, mailbox and local part name.
 // It returns a pointer to a Identity struct and any error encountered.
-func (c *Client) GetIdentity(ctx context.Context, mailbox string, localPart string) (*Identity, error) {
+func (c *Client) GetIdentity(ctx context.Context, domain *Domain, mailbox string, localPart string) (*Identity, error) {
 
 	var identity Identity
 
-	resp, err := c.Get(ctx, fmt.Sprintf("mailboxes/%s/identities/%s", mailbox, localPart))
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities/%s", domain.Name, mailbox, localPart))
 	if err != nil {
 		return nil, err
 	}
@@ -68,17 +68,15 @@ func (c *Client) GetIdentity(ctx context.Context, mailbox string, localPart stri
 	return &identity, nil
 }
 
-// NewIdentity creates a new identity given the mailbox, local part name and a display name.
-// It returns a pointer to am Identity struct and any error encountered.
-func (c *Client) NewIdentity(ctx context.Context, mailbox string, localPart string, displayName string) (*Identity, error) {
-
-	var identity = Identity{LocalPart: localPart, Name: displayName}
+// NewIdentity creates a new identity.
+// It returns a pointer to an Identity struct and any error encountered.
+func (c *Client) NewIdentity(ctx context.Context, domain *Domain, mailbox string, identity *Identity) (*Identity, error) {
 
 	jsonBody, err := json.Marshal(identity)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Post(ctx, fmt.Sprintf("mailboxes/%s/identities", mailbox), jsonBody)
+	resp, err := c.Post(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities", domain.Name, mailbox), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -86,20 +84,20 @@ func (c *Client) NewIdentity(ctx context.Context, mailbox string, localPart stri
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(body, &identity); err != nil {
+	if err = json.Unmarshal(body, identity); err != nil {
 		return nil, err
 	}
-	return &identity, nil
+	return identity, nil
 }
 
-// UpdateIdentity updates an identity in place given a pointer to an Identity struct.
+// UpdateIdentity updates an identity in place given the domain, mailbox and a pointer to an Identity struct.
 // It returns a pointer to a new Identity struct and any error encountered.
-func (c *Client) UpdateIdentity(ctx context.Context, mailbox string, i *Identity) (*Identity, error) {
+func (c *Client) UpdateIdentity(ctx context.Context, domain *Domain, mailbox string, i *Identity) (*Identity, error) {
 	jsonBody, err := json.Marshal(i)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Put(ctx, fmt.Sprintf("mailboxes/%s/identities/%s", mailbox, i.LocalPart), jsonBody)
+	resp, err := c.Put(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities/%s", domain.Name, mailbox, i.LocalPart), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -113,10 +111,10 @@ func (c *Client) UpdateIdentity(ctx context.Context, mailbox string, i *Identity
 	return i, nil
 }
 
-// DeleteIdentity deletes an identity given a pointer to an Identity struct.
+// DeleteIdentity deletes an identity given the domain, mailbox and a pointer to an Identity struct.
 // It returns any error encountered.
-func (c *Client) DeleteIdentity(ctx context.Context, mailbox string, i *Identity) error {
-	_, err := c.Delete(ctx, fmt.Sprintf("mailboxes/%s/identities/%s", mailbox, i.LocalPart))
+func (c *Client) DeleteIdentity(ctx context.Context, domain *Domain, mailbox string, i *Identity) error {
+	_, err := c.Delete(ctx, fmt.Sprintf("domains/%s/mailboxes/%s/identities/%s", domain.Name, mailbox, i.LocalPart))
 	if err != nil {
 		return err
 	}

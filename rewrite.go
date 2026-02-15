@@ -28,15 +28,15 @@ func (r *rewriteJSON) convertDestinationsField() {
 	r.Destinations = nil
 }
 
-// ListRewrites lists all the rewrites for the domain configured on the client.
-// Ir returns a pointer to an array of Rewrite structs and any error encountered.
-func (c *Client) ListRewrites(ctx context.Context) (*[]Rewrite, error) {
+// ListRewrites lists all the rewrites for the given domain.
+// It returns a slice of Rewrite structs and any error encountered.
+func (c *Client) ListRewrites(ctx context.Context, domain *Domain) ([]Rewrite, error) {
 
 	var rewriteList struct {
 		Rewrites []Rewrite `json:"rewrites,omitempty"`
 	}
 
-	resp, err := c.Get(ctx, "rewrites")
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/rewrites", domain.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -48,16 +48,16 @@ func (c *Client) ListRewrites(ctx context.Context) (*[]Rewrite, error) {
 		return nil, err
 	}
 
-	return &rewriteList.Rewrites, nil
+	return rewriteList.Rewrites, nil
 }
 
-// GetRewrite retrieves a single rewrite given its name.
+// GetRewrite retrieves a single rewrite given the domain and its name.
 // It returns a pointer to an Rewrite struct and any error encountered.
-func (c *Client) GetRewrite(ctx context.Context, name string) (*Rewrite, error) {
+func (c *Client) GetRewrite(ctx context.Context, domain *Domain, name string) (*Rewrite, error) {
 
 	var rewrite Rewrite
 
-	resp, err := c.Get(ctx, fmt.Sprintf("rewrites/%s", name))
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/rewrites/%s", domain.Name, name))
 	if err != nil {
 		return nil, err
 	}
@@ -72,17 +72,16 @@ func (c *Client) GetRewrite(ctx context.Context, name string) (*Rewrite, error) 
 	return &rewrite, nil
 }
 
-// NewRewrite creates a new rewrite given the name, local part rule and its destinations.
+// NewRewrite creates a new rewrite.
 // It returns a pointer to an Rewrite struct and any error encountered.
-func (c *Client) NewRewrite(ctx context.Context, name string, localPartRule string, destinations []string) (*Rewrite, error) {
-	var rewrite = Rewrite{Name: name, LocalPartRule: localPartRule, Destinations: destinations}
-	rewriteJSON := rewriteJSON{Rewrite: rewrite}
+func (c *Client) NewRewrite(ctx context.Context, domain *Domain, rewrite *Rewrite) (*Rewrite, error) {
+	rewriteJSON := rewriteJSON{Rewrite: *rewrite}
 	rewriteJSON.convertDestinationsField()
 	jsonBody, err := json.Marshal(rewriteJSON)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Post(ctx, "rewrites", jsonBody)
+	resp, err := c.Post(ctx, fmt.Sprintf("domains/%s/rewrites", domain.Name), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -90,22 +89,22 @@ func (c *Client) NewRewrite(ctx context.Context, name string, localPartRule stri
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(body, &rewrite); err != nil {
+	if err = json.Unmarshal(body, rewrite); err != nil {
 		return nil, err
 	}
-	return &rewrite, nil
+	return rewrite, nil
 }
 
-// UpdateRewrite updates an rewrite in place given a pointer to an Rewrite struct.
+// UpdateRewrite updates an rewrite in place given the domain and a pointer to an Rewrite struct.
 // It returns a pointer to a new Rewrite struct and any error encountered.
-func (c *Client) UpdateRewrite(ctx context.Context, r *Rewrite) (*Rewrite, error) {
+func (c *Client) UpdateRewrite(ctx context.Context, domain *Domain, r *Rewrite) (*Rewrite, error) {
 	rewriteJSON := rewriteJSON{Rewrite: *r}
 	rewriteJSON.convertDestinationsField()
 	jsonBody, err := json.Marshal(rewriteJSON)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Put(ctx, fmt.Sprintf("rewrites/%s", r.Name), jsonBody)
+	resp, err := c.Put(ctx, fmt.Sprintf("domains/%s/rewrites/%s", domain.Name, r.Name), jsonBody)
 	if err != nil {
 		return nil, err
 	}
@@ -119,10 +118,10 @@ func (c *Client) UpdateRewrite(ctx context.Context, r *Rewrite) (*Rewrite, error
 	return r, nil
 }
 
-// DeleteRewrite deletes an rewrite given a pointer to an Rewrite struct.
+// DeleteRewrite deletes an rewrite given the domain and a pointer to an Rewrite struct.
 // It returns any error encountered.
-func (c *Client) DeleteRewrite(ctx context.Context, r *Rewrite) error {
-	_, err := c.Delete(ctx, fmt.Sprintf("rewrites/%s", r.Name))
+func (c *Client) DeleteRewrite(ctx context.Context, domain *Domain, r *Rewrite) error {
+	_, err := c.Delete(ctx, fmt.Sprintf("domains/%s/rewrites/%s", domain.Name, r.Name))
 	if err != nil {
 		return err
 	}

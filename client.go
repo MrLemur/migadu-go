@@ -17,39 +17,19 @@ type httpClient interface {
 type Client struct {
 	Email      string
 	APIKey     string
-	Domain     string
 	Timeout    int
 	BaseURL    string
 	HTTPClient httpClient
 }
 
-// testAuth tests that credentials are valid before creating a client.
-// It returns any error encountered.
-func (c *Client) testAuth() error {
-	ctx := context.Background()
-	_, err := c.Get(ctx, "mailboxes")
-	if err != nil {
-		return fmt.Errorf("authorisation not valid: %w", err)
-	}
-	return nil
-}
-
-// New creates a new client one domain on Migadu given the admin email and API key.
+// New creates a new account-level client for Migadu given the admin email and API key.
 // It returns a pointer to the new client and any error encountered.
-func New(email string, apiKey string, domain string) (*Client, error) {
-	baseURL := fmt.Sprintf("https://api.migadu.com/v1/domains/%s", domain)
-
+func New(email string, apiKey string) (*Client, error) {
 	client := &Client{
 		Email:      email,
 		APIKey:     apiKey,
-		Domain:     domain,
-		BaseURL:    baseURL,
+		BaseURL:    "https://api.migadu.com/v1",
 		HTTPClient: &http.Client{},
-	}
-
-	err := client.testAuth()
-	if err != nil {
-		return nil, err
 	}
 
 	return client, nil
