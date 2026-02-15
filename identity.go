@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 )
 
 // Identity represents an identity in the Migadu API.
@@ -29,15 +29,20 @@ type Identity struct {
 func (c *Client) ListIdentities(ctx context.Context, mailbox string) (*[]Identity, error) {
 
 	var identityList struct {
-		Indentities []Identity `json:"identities,omitempty,omitempty"`
+		Indentities []Identity `json:"identities,omitempty"`
 	}
 
 	resp, err := c.Get(ctx, fmt.Sprintf("mailboxes/%s/identities", mailbox))
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &identityList)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &identityList); err != nil {
+		return nil, err
+	}
 
 	return &identityList.Indentities, nil
 }
@@ -52,8 +57,13 @@ func (c *Client) GetIdentity(ctx context.Context, mailbox string, localPart stri
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &identity)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &identity); err != nil {
+		return nil, err
+	}
 
 	return &identity, nil
 }
@@ -64,26 +74,42 @@ func (c *Client) NewIdentity(ctx context.Context, mailbox string, localPart stri
 
 	var identity = Identity{LocalPart: localPart, Name: displayName}
 
-	jsonBody, _ := json.Marshal(identity)
+	jsonBody, err := json.Marshal(identity)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.Post(ctx, fmt.Sprintf("mailboxes/%s/identities", mailbox), jsonBody)
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &identity)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &identity); err != nil {
+		return nil, err
+	}
 	return &identity, nil
 }
 
 // UpdateIdentity updates an identity in place given a pointer to an Identity struct.
 // It returns a pointer to a new Identity struct and any error encountered.
 func (c *Client) UpdateIdentity(ctx context.Context, mailbox string, i *Identity) (*Identity, error) {
-	jsonBody, _ := json.Marshal(i)
+	jsonBody, err := json.Marshal(i)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.Put(ctx, fmt.Sprintf("mailboxes/%s/identities/%s", mailbox, i.LocalPart), jsonBody)
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &i)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &i); err != nil {
+		return nil, err
+	}
 	return i, nil
 }
 

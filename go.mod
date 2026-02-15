@@ -1,3 +1,3 @@
 module github.com/MrLemur/migadu-go
 
-go 1.17
+go 1.26.0

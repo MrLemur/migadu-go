@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 )
 
@@ -40,8 +40,13 @@ func (c *Client) ListRewrites(ctx context.Context) (*[]Rewrite, error) {
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &rewriteList)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &rewriteList); err != nil {
+		return nil, err
+	}
 
 	return &rewriteList.Rewrites, nil
 }
@@ -56,8 +61,13 @@ func (c *Client) GetRewrite(ctx context.Context, name string) (*Rewrite, error) 
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &rewrite)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &rewrite); err != nil {
+		return nil, err
+	}
 
 	return &rewrite, nil
 }
@@ -68,13 +78,21 @@ func (c *Client) NewRewrite(ctx context.Context, name string, localPartRule stri
 	var rewrite = Rewrite{Name: name, LocalPartRule: localPartRule, Destinations: destinations}
 	rewriteJSON := rewriteJSON{Rewrite: rewrite}
 	rewriteJSON.convertDestinationsField()
-	jsonBody, _ := json.Marshal(rewriteJSON)
+	jsonBody, err := json.Marshal(rewriteJSON)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.Post(ctx, "rewrites", jsonBody)
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &rewrite)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &rewrite); err != nil {
+		return nil, err
+	}
 	return &rewrite, nil
 }
 
@@ -83,13 +101,21 @@ func (c *Client) NewRewrite(ctx context.Context, name string, localPartRule stri
 func (c *Client) UpdateRewrite(ctx context.Context, r *Rewrite) (*Rewrite, error) {
 	rewriteJSON := rewriteJSON{Rewrite: *r}
 	rewriteJSON.convertDestinationsField()
-	jsonBody, _ := json.Marshal(rewriteJSON)
+	jsonBody, err := json.Marshal(rewriteJSON)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.Put(ctx, fmt.Sprintf("rewrites/%s", r.Name), jsonBody)
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &r)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &r); err != nil {
+		return nil, err
+	}
 	return r, nil
 }
 

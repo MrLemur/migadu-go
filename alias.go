@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 )
 
@@ -44,8 +44,13 @@ func (c *Client) ListAliases(ctx context.Context) (*[]Alias, error) {
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &aliasList)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &aliasList); err != nil {
+		return nil, err
+	}
 
 	return &aliasList.Aliases, nil
 }
@@ -60,8 +65,13 @@ func (c *Client) GetAlias(ctx context.Context, localPart string) (*Alias, error)
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &alias)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &alias); err != nil {
+		return nil, err
+	}
 
 	return &alias, nil
 }
@@ -72,13 +82,21 @@ func (c *Client) NewAlias(ctx context.Context, localPart string, destinations []
 	var alias = Alias{LocalPart: localPart, Destinations: destinations}
 	aliasJSON := aliasJSON{Alias: alias}
 	aliasJSON.convertDestinationsField()
-	jsonBody, _ := json.Marshal(aliasJSON)
+	jsonBody, err := json.Marshal(aliasJSON)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.Post(ctx, "aliases", jsonBody)
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &alias)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &alias); err != nil {
+		return nil, err
+	}
 	return &alias, nil
 }
 
@@ -87,13 +105,21 @@ func (c *Client) NewAlias(ctx context.Context, localPart string, destinations []
 func (c *Client) UpdateAlias(ctx context.Context, a *Alias) (*Alias, error) {
 	aliasJSON := aliasJSON{Alias: *a}
 	aliasJSON.convertDestinationsField()
-	jsonBody, _ := json.Marshal(aliasJSON)
+	jsonBody, err := json.Marshal(aliasJSON)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.Put(ctx, fmt.Sprintf("aliases/%s", a.LocalPart), jsonBody)
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &a)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &a); err != nil {
+		return nil, err
+	}
 	return a, nil
 }
 

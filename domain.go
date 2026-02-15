@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 )
@@ -87,8 +87,13 @@ func (c *Client) ListDomains(ctx context.Context) (*[]Domain, error) {
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &domainList)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &domainList); err != nil {
+		return nil, err
+	}
 
 	return &domainList.Domains, nil
 }
@@ -101,8 +106,13 @@ func (c *Client) GetDomain(ctx context.Context, name string) (*Domain, error) {
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &domain)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &domain); err != nil {
+		return nil, err
+	}
 
 	return &domain, nil
 }
@@ -111,26 +121,42 @@ func (c *Client) GetDomain(ctx context.Context, name string) (*Domain, error) {
 func (c *Client) NewDomain(ctx context.Context, name string) (*Domain, error) {
 	var domain = Domain{Name: name}
 
-	jsonBody, _ := json.Marshal(domain)
+	jsonBody, err := json.Marshal(domain)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.apiRequest(ctx, http.MethodPost, "domains", jsonBody)
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &domain)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &domain); err != nil {
+		return nil, err
+	}
 
 	return &domain, nil
 }
 
 // UpdateDomain updates a domain in place given a pointer to a Domain struct.
 func (c *Client) UpdateDomain(ctx context.Context, d *Domain) (*Domain, error) {
-	jsonBody, _ := json.Marshal(d)
+	jsonBody, err := json.Marshal(d)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.apiRequest(ctx, http.MethodPatch, fmt.Sprintf("domains/%s", d.Name), jsonBody)
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, d)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, d); err != nil {
+		return nil, err
+	}
 
 	return d, nil
 }
@@ -145,8 +171,13 @@ func (c *Client) GetDomainRecords(ctx context.Context, name string) (*[]DNSRecor
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &recordList)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &recordList); err != nil {
+		return nil, err
+	}
 
 	return &recordList.Records, nil
 }
@@ -159,8 +190,13 @@ func (c *Client) GetDomainDiagnostics(ctx context.Context, name string) (*Domain
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &diagnostics)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &diagnostics); err != nil {
+		return nil, err
+	}
 
 	return &diagnostics, nil
 }
@@ -173,8 +209,13 @@ func (c *Client) ActivateDomain(ctx context.Context, name string) (*Domain, erro
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &domain)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &domain); err != nil {
+		return nil, err
+	}
 
 	return &domain, nil
 }

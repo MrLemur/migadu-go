@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 )
 
 // Mailbox represents a mailbox in the Migadu API.
@@ -56,8 +56,13 @@ func (c *Client) ListMailboxes(ctx context.Context) (*[]Mailbox, error) {
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &mailboxList)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &mailboxList); err != nil {
+		return nil, err
+	}
 
 	return &mailboxList.Mailboxes, nil
 }
@@ -72,8 +77,13 @@ func (c *Client) GetMailbox(ctx context.Context, localPart string) (*Mailbox, er
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &mailbox)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &mailbox); err != nil {
+		return nil, err
+	}
 
 	return &mailbox, nil
 }
@@ -92,26 +102,42 @@ func (c *Client) NewMailbox(ctx context.Context, localPart string, displayName s
 		mailbox.PasswordMethod = "invitation"
 	}
 
-	jsonBody, _ := json.Marshal(mailbox)
+	jsonBody, err := json.Marshal(mailbox)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.Post(ctx, "mailboxes", jsonBody)
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &mailbox)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &mailbox); err != nil {
+		return nil, err
+	}
 	return &mailbox, nil
 }
 
 // UpdateMailbox updates a mailbox in place given a pointer to a Mailbox struct.
 // It returns a pointer to a new Mailbox struct and any error encountered.
 func (c *Client) UpdateMailbox(ctx context.Context, mb *Mailbox) (*Mailbox, error) {
-	jsonBody, _ := json.Marshal(mb)
+	jsonBody, err := json.Marshal(mb)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := c.Put(ctx, fmt.Sprintf("mailboxes/%s", mb.LocalPart), jsonBody)
 	if err != nil {
 		return nil, err
 	}
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &mb)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(body, &mb); err != nil {
+		return nil, err
+	}
 	return mb, nil
 }
 

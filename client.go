@@ -29,7 +29,7 @@ func (c *Client) testAuth() error {
 	ctx := context.Background()
 	_, err := c.Get(ctx, "mailboxes")
 	if err != nil {
-		return fmt.Errorf("Authorisation not valid. Error: %w", err)
+		return fmt.Errorf("authorisation not valid: %w", err)
 	}
 	return nil
 }
@@ -98,7 +98,7 @@ func (c *Client) Post(ctx context.Context, path string, body []byte) (*http.Resp
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Error: status code %d is not 200", resp.StatusCode)
+		return nil, fmt.Errorf("status code %d is not 200", resp.StatusCode)
 	}
 
 	return resp, nil
@@ -123,7 +123,7 @@ func (c *Client) Put(ctx context.Context, path string, body []byte) (*http.Respo
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Error: status code %d is not 200", resp.StatusCode)
+		return nil, fmt.Errorf("status code %d is not 200", resp.StatusCode)
 	}
 
 	return resp, nil
@@ -148,7 +148,7 @@ func (c *Client) Patch(ctx context.Context, path string, body []byte) (*http.Res
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Error: status code %d is not 200", resp.StatusCode)
+		return nil, fmt.Errorf("status code %d is not 200", resp.StatusCode)
 	}
 
 	return resp, nil
@@ -172,7 +172,7 @@ func (c *Client) Delete(ctx context.Context, path string) (*http.Response, error
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Error: status code %d is not 200", resp.StatusCode)
+		return nil, fmt.Errorf("status code %d is not 200", resp.StatusCode)
 	}
 
 	return resp, nil
