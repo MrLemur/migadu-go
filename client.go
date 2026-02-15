@@ -129,6 +129,31 @@ func (c *Client) Put(ctx context.Context, path string, body []byte) (*http.Respo
 	return resp, nil
 }
 
+// Patch is a convenience function to PATCH an HTTP resource given a path and a byte slice.
+// It can be used to access the API directly if the existing methods are not enough.
+// It returns a pointer to an http.Response and any error encountered.
+func (c *Client) Patch(ctx context.Context, path string, body []byte) (*http.Response, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(time.Second*120))
+	defer cancel()
+
+	urlPath := fmt.Sprintf("%s/%s", c.BaseURL, path)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, urlPath, bytes.NewBuffer(body))
+	req.SetBasicAuth(c.Email, c.APIKey)
+	req.Header.Add("Content-Type", "application/json")
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("Error: status code %d is not 200", resp.StatusCode)
+	}
+
+	return resp, nil
+}
+
 // Delete is a convenience function to DELETE an HTTP resource given a path.
 // It can be used to access the API directly if the existing methods are not enough.
 // It returns a pointer to an http.Response and any error encountered.
