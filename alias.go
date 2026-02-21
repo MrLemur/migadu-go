@@ -4,89 +4,64 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"strings"
 )
 
-// Alias represents an alias in the Migadu API.
-type Alias struct {
-	Address      string `json:"address,omitempty"`
-	Destinations string `json:"destinations,omitempty"`
-	DomainName   string `json:"domain_name,omitempty"`
-	IsInternal   bool   `json:"is_internal,omitempty"`
-	LocalPart    string `json:"local_part,omitempty"`
-}
-
-func (a *Alias) UnmarshalJSON(data []byte) error {
-	type alias Alias
-	type rawAlias struct {
-		alias
-		Destinations json.RawMessage `json:"destinations"`
+// validateAliasDestinations validates that alias destinations are on the same domain.
+func validateAliasDestinations(a *Alias, d *Domain) error {
+	if len(a.Destinations) == 0 {
+		return fmt.Errorf("alias must have at least one destination")
 	}
 
-	var raw rawAlias
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
+	for _, dest := range a.Destinations {
+		if !strings.Contains(dest, "@") {
+			return fmt.Errorf("invalid destination format: %s", dest)
+		}
 
-	*a = Alias(raw.alias)
-	dest, err := parseDestinations(raw.Destinations)
-	if err != nil {
-		return err
+		parts := strings.Split(dest, "@")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid destination format: %s", dest)
+		}
+
+		if parts[1] != d.Name {
+			return fmt.Errorf("alias destinations must be on the same domain (%s), got: %s", d.Name, dest)
+		}
 	}
-	a.Destinations = dest
 	return nil
 }
 
-func parseDestinations(data json.RawMessage) (string, error) {
-	if len(data) == 0 || string(data) == "null" {
-		return "", nil
-	}
-
-	var s string
-	if err := json.Unmarshal(data, &s); err == nil {
-		return s, nil
-	}
-
-	var arr []string
-	if err := json.Unmarshal(data, &arr); err == nil {
-		return strings.Join(arr, ","), nil
-	}
-
-	return "", fmt.Errorf("unsupported destinations format: %s", string(data))
+// Alias represents an alias in the Migadu API.
+type Alias struct {
+	Address          string   `json:"address,omitempty" api:"read-only"`
+	ExpiresOn        string   `json:"expires_on,omitempty"`
+	Expireable       bool     `json:"expirable,omitempty"`
+	Destinations     []string `json:"destinations,omitempty"`
+	DomainName       string   `json:"domain_name,omitempty" api:"read-only"`
+	IsInternal       bool     `json:"is_internal,omitempty"`
+	RemoveUponExpiry bool     `json:"remove_upon_expiry,omitempty"`
+	LocalPart        string   `json:"local_part,omitempty" api:"create-only"`
 }
 
-// Create returns a request-safe copy for alias create operations.
-func (a Alias) Create() Alias {
-	a.Address = ""
-	a.DomainName = ""
-	return a
-}
-
-// Update returns a request-safe copy for alias update operations.
-func (a Alias) Update() Alias {
-	a = a.Create()
-	a.LocalPart = ""
-	return a
+// AliasList is a wrapper for a list of aliases returned by the API.
+type AliasList struct {
+	Aliases []Alias `json:"address_aliases,omitempty"`
 }
 
 // ListAliases lists all the aliases for the given domain.
 // It returns a slice of Alias structs and any error encountered.
-func (c *Client) ListAliases(ctx context.Context, domain *Domain) ([]Alias, error) {
+func (c *Client) ListAliases(ctx context.Context, d *Domain) ([]Alias, error) {
 
-	var aliasList struct {
-		Aliases []Alias `json:"address_aliases,omitempty"`
+	if d == nil {
+		return nil, fmt.Errorf("domain must not be nil")
 	}
 
-	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/aliases", escapePathSegment(domain.Name)))
+	var aliasList AliasList
+
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/aliases", escapePathSegment(d.Name)))
 	if err != nil {
 		return nil, err
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(body, &aliasList); err != nil {
+	if err = readAndUnmarshal(resp.Body, &aliasList); err != nil {
 		return nil, err
 	}
 
@@ -95,62 +70,88 @@ func (c *Client) ListAliases(ctx context.Context, domain *Domain) ([]Alias, erro
 
 // GetAlias retrieves a single alias given the domain and local part name.
 // It returns a pointer to an Alias struct and any error encountered.
-func (c *Client) GetAlias(ctx context.Context, domain *Domain, localPart string) (*Alias, error) {
+func (c *Client) GetAlias(ctx context.Context, d *Domain, a *Alias) (*Alias, error) {
 
-	var alias Alias
+	if d == nil {
+		return nil, fmt.Errorf("domain must not be nil")
+	}
+	if a == nil {
+		return nil, fmt.Errorf("alias must not be nil")
+	}
 
-	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/aliases/%s", escapePathSegment(domain.Name), escapePathSegment(localPart)))
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/aliases/%s", escapePathSegment(d.Name), escapePathSegment(a.LocalPart)))
 	if err != nil {
 		return nil, err
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(body, &alias); err != nil {
+	if err = readAndUnmarshal(resp.Body, a); err != nil {
 		return nil, err
 	}
 
-	return &alias, nil
+	return a, nil
 }
 
 // NewAlias creates a new alias.
 // It returns a pointer to an Alias struct and any error encountered.
-func (c *Client) NewAlias(ctx context.Context, domain *Domain, alias *Alias) (*Alias, error) {
-	jsonBody, err := json.Marshal(alias.Create())
+func (c *Client) NewAlias(ctx context.Context, d *Domain, a *Alias) (*Alias, error) {
+	if d == nil {
+		return nil, fmt.Errorf("domain must not be nil")
+	}
+	if a == nil {
+		return nil, fmt.Errorf("alias must not be nil")
+	}
+
+	if err := validateAliasDestinations(a, d); err != nil {
+		return nil, err
+	}
+
+	transformed, err := Transform(*a, "create")
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Post(ctx, fmt.Sprintf("domains/%s/aliases", escapePathSegment(domain.Name)), jsonBody)
+
+	jsonBody, err := json.Marshal(transformed)
 	if err != nil {
 		return nil, err
 	}
-	body, err := io.ReadAll(resp.Body)
+
+	resp, err := c.Post(ctx, fmt.Sprintf("domains/%s/aliases", escapePathSegment(d.Name)), jsonBody)
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(body, alias); err != nil {
+	if err = readAndUnmarshal(resp.Body, a); err != nil {
 		return nil, err
 	}
-	return alias, nil
+
+	return a, nil
 }
 
 // UpdateAlias updates an alias in place given the domain and a pointer to an Alias struct.
 // It returns a pointer to a new Alias struct and any error encountered.
-func (c *Client) UpdateAlias(ctx context.Context, domain *Domain, a *Alias) (*Alias, error) {
-	jsonBody, err := json.Marshal(a.Update())
+func (c *Client) UpdateAlias(ctx context.Context, d *Domain, a *Alias) (*Alias, error) {
+	if d == nil {
+		return nil, fmt.Errorf("domain must not be nil")
+	}
+	if a == nil {
+		return nil, fmt.Errorf("alias must not be nil")
+	}
+
+	if err := validateAliasDestinations(a, d); err != nil {
+		return nil, err
+	}
+
+	transformed, err := Transform(*a, "update")
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Put(ctx, fmt.Sprintf("domains/%s/aliases/%s", escapePathSegment(domain.Name), escapePathSegment(a.LocalPart)), jsonBody)
+	jsonBody, err := json.Marshal(transformed)
 	if err != nil {
 		return nil, err
 	}
-	body, err := io.ReadAll(resp.Body)
+	resp, err := c.Put(ctx, fmt.Sprintf("domains/%s/aliases/%s", escapePathSegment(d.Name), escapePathSegment(a.LocalPart)), jsonBody)
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(body, a); err != nil {
+	if err = readAndUnmarshal(resp.Body, a); err != nil {
 		return nil, err
 	}
 	return a, nil
@@ -158,8 +159,14 @@ func (c *Client) UpdateAlias(ctx context.Context, domain *Domain, a *Alias) (*Al
 
 // DeleteAlias deletes an alias given the domain and a pointer to an Alias struct.
 // It returns any error encountered.
-func (c *Client) DeleteAlias(ctx context.Context, domain *Domain, a *Alias) error {
-	_, err := c.Delete(ctx, fmt.Sprintf("domains/%s/aliases/%s", escapePathSegment(domain.Name), escapePathSegment(a.LocalPart)))
+func (c *Client) DeleteAlias(ctx context.Context, d *Domain, a *Alias) error {
+	if d == nil {
+		return fmt.Errorf("domain must not be nil")
+	}
+	if a == nil {
+		return fmt.Errorf("alias must not be nil")
+	}
+	_, err := c.Delete(ctx, fmt.Sprintf("domains/%s/aliases/%s", escapePathSegment(d.Name), escapePathSegment(a.LocalPart)))
 	if err != nil {
 		return err
 	}

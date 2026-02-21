@@ -4,20 +4,36 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"strings"
 )
 
+// validateDomainCreate validates domain creation parameters.
+func validateDomainCreate(d *Domain) error {
+	if d.HostedDNS {
+		return fmt.Errorf("hosted_dns: true is not recommended as Migadu plans to discontinue this service")
+	}
+	return nil
+}
+
 // Domain represents a domain in the Migadu API.
+//
+// SpamAggressiveness is an integer with the following values:
+//
+//	-3 = paranoid   (most aggressive filtering)
+//	-2 = aggressive
+//	 0 = moderate   (default)
+//	 2 = suspicious
+//	 3 = permissive (least aggressive filtering)
 type Domain struct {
-	Name                    string   `json:"name,omitempty"`
-	State                   string   `json:"state,omitempty"`
+	Name                    string   `json:"name,omitempty" api:"create-only"`
+	ActivatedAt             string   `json:"activated_at,omitempty" api:"read-only"`
+	DeactivatedAt           string   `json:"deactivated_at,omitempty" api:"read-only"`
+	State                   string   `json:"state,omitempty" api:"read-only"`
 	Description             string   `json:"description,omitempty"`
 	Tags                    []string `json:"tags,omitempty"`
-	CanSend                 bool     `json:"can_send,omitempty"`
-	CanReceive              bool     `json:"can_receive,omitempty"`
+	CanSend                 bool     `json:"can_send,omitempty" api:"read-only"`
+	CanReceive              bool     `json:"can_receive,omitempty" api:"read-only"`
 	CanAccess               bool     `json:"can_access,omitempty"`
-	SpamAggressiveness      string   `json:"spam_aggressiveness,omitempty"`
+	SpamAggressiveness      int      `json:"spam_aggressiveness,omitempty"`
 	GreylistingEnabled      bool     `json:"greylisting_enabled,omitempty"`
 	JunkSubjectKeywordSpam  bool     `json:"junk_subject_keyword_spam,omitempty"`
 	SubjectRewritingEnabled bool     `json:"subject_rewriting_enabled,omitempty"`
@@ -25,116 +41,8 @@ type Domain struct {
 	HostedDNS               bool     `json:"hosted_dns,omitempty"`
 	SenderAllowlist         []string `json:"sender_allowlist,omitempty"`
 	SenderDenylist          []string `json:"sender_denylist,omitempty"`
-	RecipientDenylist       []string `json:"recipient_denylist,omitempty"`
+	RecipientDenylist       string   `json:"recipient_denylist,omitempty"`
 	CatchallDestinations    []string `json:"catchall_destinations,omitempty"`
-}
-
-func (d *Domain) UnmarshalJSON(data []byte) error {
-	type DomainAlias Domain
-	aux := &struct {
-		SpamAggressiveness   json.RawMessage `json:"spam_aggressiveness"`
-		Tags                 json.RawMessage `json:"tags"`
-		SenderAllowlist      json.RawMessage `json:"sender_allowlist"`
-		SenderDenylist       json.RawMessage `json:"sender_denylist"`
-		RecipientDenylist    json.RawMessage `json:"recipient_denylist"`
-		CatchallDestinations json.RawMessage `json:"catchall_destinations"`
-		*DomainAlias
-	}{
-		DomainAlias: (*DomainAlias)(d),
-	}
-
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	// Parse spam_aggressiveness (can be string or number)
-	if len(aux.SpamAggressiveness) > 0 && string(aux.SpamAggressiveness) != "null" {
-		var str string
-		if err := json.Unmarshal(aux.SpamAggressiveness, &str); err == nil {
-			d.SpamAggressiveness = str
-		} else {
-			var num interface{}
-			if err := json.Unmarshal(aux.SpamAggressiveness, &num); err == nil {
-				d.SpamAggressiveness = fmt.Sprintf("%v", num)
-			}
-		}
-	}
-
-	// Parse list fields that can be string or array
-	if tags, err := parseStringOrArray(aux.Tags); err != nil {
-		return err
-	} else {
-		d.Tags = tags
-	}
-
-	if allowlist, err := parseStringOrArray(aux.SenderAllowlist); err != nil {
-		return err
-	} else {
-		d.SenderAllowlist = allowlist
-	}
-
-	if denylist, err := parseStringOrArray(aux.SenderDenylist); err != nil {
-		return err
-	} else {
-		d.SenderDenylist = denylist
-	}
-
-	if recipientDenylist, err := parseStringOrArray(aux.RecipientDenylist); err != nil {
-		return err
-	} else {
-		d.RecipientDenylist = recipientDenylist
-	}
-
-	if catchall, err := parseStringOrArray(aux.CatchallDestinations); err != nil {
-		return err
-	} else {
-		d.CatchallDestinations = catchall
-	}
-
-	return nil
-}
-
-func parseStringOrArray(data json.RawMessage) ([]string, error) {
-	if len(data) == 0 || string(data) == "null" {
-		return nil, nil
-	}
-
-	// Try as string first
-	var s string
-	if err := json.Unmarshal(data, &s); err == nil {
-		if s == "" {
-			return nil, nil
-		}
-		return strings.Split(s, ","), nil
-	}
-
-	// Try as array
-	var arr []string
-	if err := json.Unmarshal(data, &arr); err == nil {
-		return arr, nil
-	}
-
-	return nil, fmt.Errorf("unsupported list format: %s", string(data))
-}
-
-// Create returns a request-safe copy for domain create operations.
-func (d Domain) Create() Domain {
-	d.State = ""
-	d.CanSend = false
-	d.CanReceive = false
-	d.CanAccess = false
-	return d
-}
-
-// Update returns a request-safe copy for domain update operations.
-func (d Domain) Update() Domain {
-	d.Name = ""
-	d.State = ""
-	d.CanSend = false
-	d.CanReceive = false
-	d.CanAccess = false
-	d.JunkSubjectKeywordSpam = false
-	return d
 }
 
 // DNSRecord represents a DNS record needed for domain configuration.
@@ -164,11 +72,7 @@ func (c *Client) ListDomains(ctx context.Context) ([]Domain, error) {
 	if err != nil {
 		return nil, err
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(body, &domainList); err != nil {
+	if err = readAndUnmarshal(resp.Body, &domainList); err != nil {
 		return nil, err
 	}
 
@@ -176,59 +80,62 @@ func (c *Client) ListDomains(ctx context.Context) ([]Domain, error) {
 }
 
 // GetDomain retrieves a single domain.
-func (c *Client) GetDomain(ctx context.Context, domain *Domain) (*Domain, error) {
-	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s", domain.Name))
+func (c *Client) GetDomain(ctx context.Context, d *Domain) (*Domain, error) {
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s", d.Name))
 	if err != nil {
 		return nil, err
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(body, domain); err != nil {
+	if err = readAndUnmarshal(resp.Body, d); err != nil {
 		return nil, err
 	}
 
-	return domain, nil
+	return d, nil
 }
 
 // NewDomain creates a new domain.
-func (c *Client) NewDomain(ctx context.Context, domain *Domain) (*Domain, error) {
-	jsonBody, err := json.Marshal(domain)
+func (c *Client) NewDomain(ctx context.Context, d *Domain) (*Domain, error) {
+	if err := validateDomainCreate(d); err != nil {
+		return nil, err
+	}
+
+	transformed, err := Transform(*d, "create")
 	if err != nil {
 		return nil, err
 	}
+
+	jsonBody, err := json.Marshal(transformed)
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := c.Post(ctx, "domains", jsonBody)
 	if err != nil {
 		return nil, err
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(body, domain); err != nil {
+	if err = readAndUnmarshal(resp.Body, d); err != nil {
 		return nil, err
 	}
 
-	return domain, nil
+	return d, nil
 }
 
 // UpdateDomain updates a domain in place given a pointer to a Domain struct.
 func (c *Client) UpdateDomain(ctx context.Context, d *Domain) (*Domain, error) {
-	domainName := d.Name
-	jsonBody, err := json.Marshal(d.Update())
+	transformed, err := Transform(*d, "update")
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.Patch(ctx, fmt.Sprintf("domains/%s", escapePathSegment(domainName)), jsonBody)
+
+	jsonBody, err := json.Marshal(transformed)
 	if err != nil {
 		return nil, err
 	}
-	body, err := io.ReadAll(resp.Body)
+
+	resp, err := c.Patch(ctx, fmt.Sprintf("domains/%s", escapePathSegment(d.Name)), jsonBody)
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(body, d); err != nil {
+	if err = readAndUnmarshal(resp.Body, d); err != nil {
 		return nil, err
 	}
 
@@ -236,39 +143,61 @@ func (c *Client) UpdateDomain(ctx context.Context, d *Domain) (*Domain, error) {
 }
 
 // GetDomainRecords retrieves the DNS records needed for a domain.
-func (c *Client) GetDomainRecords(ctx context.Context, domain *Domain) ([]DNSRecord, error) {
-	var recordList struct {
-		Records []DNSRecord `json:"records,omitempty"`
+func (c *Client) GetDomainRecords(ctx context.Context, d *Domain) ([]DNSRecord, error) {
+	var apiResponse struct {
+		DomainName      string      `json:"domain_name"`
+		SPF             *DNSRecord  `json:"spf"`
+		DKIM            []DNSRecord `json:"dkim"`
+		DMARC           *DNSRecord  `json:"dmarc"`
+		DNSVerification *DNSRecord  `json:"dns_verification"`
+		MXRecords       []DNSRecord `json:"mx_records"`
+		AutoConfig      *DNSRecord  `json:"autoconfig"`
+		AutoDiscover    *DNSRecord  `json:"autodiscover"`
+		SRV             []DNSRecord `json:"srv"`
 	}
 
-	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/records", domain.Name))
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/records", d.Name))
 	if err != nil {
 		return nil, err
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(body, &recordList); err != nil {
+	if err = readAndUnmarshal(resp.Body, &apiResponse); err != nil {
 		return nil, err
 	}
 
-	return recordList.Records, nil
+	var records []DNSRecord
+	if apiResponse.SPF != nil {
+		records = append(records, *apiResponse.SPF)
+	}
+	records = append(records, apiResponse.DKIM...)
+	if apiResponse.DMARC != nil {
+		records = append(records, *apiResponse.DMARC)
+	}
+	if apiResponse.DNSVerification != nil {
+		verificationRecord := *apiResponse.DNSVerification
+		verificationRecord.Value = "hosted-email-verify=" + verificationRecord.Value
+		records = append(records, verificationRecord)
+	}
+	records = append(records, apiResponse.MXRecords...)
+	if apiResponse.AutoConfig != nil {
+		records = append(records, *apiResponse.AutoConfig)
+	}
+	if apiResponse.AutoDiscover != nil {
+		records = append(records, *apiResponse.AutoDiscover)
+	}
+	records = append(records, apiResponse.SRV...)
+
+	return records, nil
 }
 
 // GetDomainDiagnostics runs DNS validation checks for a domain.
-func (c *Client) GetDomainDiagnostics(ctx context.Context, domain *Domain) (*DomainDiagnostics, error) {
+func (c *Client) GetDomainDiagnostics(ctx context.Context, d *Domain) (*DomainDiagnostics, error) {
 	var diagnostics DomainDiagnostics
 
-	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/diagnostics", domain.Name))
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/diagnostics", d.Name))
 	if err != nil {
 		return nil, err
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(body, &diagnostics); err != nil {
+	if err = readAndUnmarshal(resp.Body, &diagnostics); err != nil {
 		return nil, err
 	}
 
@@ -276,18 +205,14 @@ func (c *Client) GetDomainDiagnostics(ctx context.Context, domain *Domain) (*Dom
 }
 
 // ActivateDomain activates a domain after DNS setup is complete.
-func (c *Client) ActivateDomain(ctx context.Context, domain *Domain) (*Domain, error) {
-	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/activate", domain.Name))
+func (c *Client) ActivateDomain(ctx context.Context, d *Domain) (*Domain, error) {
+	resp, err := c.Get(ctx, fmt.Sprintf("domains/%s/activate", d.Name))
 	if err != nil {
 		return nil, err
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(body, domain); err != nil {
+	if err = readAndUnmarshal(resp.Body, d); err != nil {
 		return nil, err
 	}
 
-	return domain, nil
+	return d, nil
 }
