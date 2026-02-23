@@ -41,7 +41,7 @@ type Domain struct {
 	HostedDNS               bool     `json:"hosted_dns,omitempty"`
 	SenderAllowlist         []string `json:"sender_allowlist,omitempty"`
 	SenderDenylist          []string `json:"sender_denylist,omitempty"`
-	RecipientDenylist       string   `json:"recipient_denylist,omitempty"`
+	RecipientDenylist       []string `json:"recipient_denylist,omitempty"`
 	CatchallDestinations    []string `json:"catchall_destinations,omitempty"`
 }
 
