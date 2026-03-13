@@ -16,13 +16,13 @@ func validateDomainCreate(d *Domain) error {
 
 // Domain represents a domain in the Migadu API.
 //
-// SpamAggressiveness is an integer with the following values:
+// SpamAggressiveness is a string with the following valid values:
 //
-//	-3 = paranoid   (most aggressive filtering)
-//	-2 = aggressive
-//	 0 = moderate   (default)
-//	 2 = suspicious
-//	 3 = permissive (least aggressive filtering)
+//	"paranoid"    (most aggressive filtering)
+//	"aggressive"
+//	"default"
+//	"suspicious"
+//	"permissive"  (least aggressive filtering)
 type Domain struct {
 	Name                    string   `json:"name,omitempty" api:"create-only"`
 	ActivatedAt             string   `json:"activated_at,omitempty" api:"read-only"`
@@ -33,7 +33,7 @@ type Domain struct {
 	CanSend                 bool     `json:"can_send,omitempty" api:"read-only"`
 	CanReceive              bool     `json:"can_receive,omitempty" api:"read-only"`
 	CanAccess               bool     `json:"can_access,omitempty"`
-	SpamAggressiveness      int      `json:"spam_aggressiveness,omitempty"`
+	SpamAggressiveness      string   `json:"spam_aggressiveness,omitempty"`
 	GreylistingEnabled      bool     `json:"greylisting_enabled,omitempty"`
 	JunkSubjectKeywordSpam  bool     `json:"junk_subject_keyword_spam,omitempty"`
 	SubjectRewritingEnabled bool     `json:"subject_rewriting_enabled,omitempty"`
