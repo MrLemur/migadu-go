@@ -174,7 +174,6 @@ func (c *Client) GetDomainRecords(ctx context.Context, d *Domain) ([]DNSRecord, 
 	}
 	if apiResponse.DNSVerification != nil {
 		verificationRecord := *apiResponse.DNSVerification
-		verificationRecord.Value = "hosted-email-verify=" + verificationRecord.Value
 		records = append(records, verificationRecord)
 	}
 	records = append(records, apiResponse.MXRecords...)
