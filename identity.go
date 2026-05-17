@@ -10,9 +10,6 @@ import (
 type Identity struct {
 	Address              string `json:"address,omitempty" api:"read-only"`
 	DomainName           string `json:"domain_name,omitempty" api:"read-only"`
-	FooterActive         bool   `json:"footer_active,omitempty"`
-	FooterHTMLBody       string `json:"footer_html_body,omitempty"`
-	FooterPlainBody      string `json:"footer_plain_body,omitempty"`
 	LocalPart            string `json:"local_part,omitempty" api:"create-only"`
 	MayAccessImap        bool   `json:"may_access_imap,omitempty"`
 	MayAccessManagesieve bool   `json:"may_access_managesieve,omitempty"`
@@ -21,6 +18,7 @@ type Identity struct {
 	MaySend              bool   `json:"may_send,omitempty"`
 	Name                 string `json:"name,omitempty"`
 	Password             string `json:"password,omitempty"`
+	PasswordUse          string `json:"password_use,omitempty" api:"read-only"`
 }
 
 // ListIdentities lists all the identities for the given domain and mailbox.

@@ -24,25 +24,33 @@ func validateDomainCreate(d *Domain) error {
 //	"suspicious"
 //	"permissive"  (least aggressive filtering)
 type Domain struct {
-	Name                    string   `json:"name,omitempty" api:"create-only"`
-	ActivatedAt             string   `json:"activated_at,omitempty" api:"read-only"`
-	DeactivatedAt           string   `json:"deactivated_at,omitempty" api:"read-only"`
-	State                   string   `json:"state,omitempty" api:"read-only"`
-	Description             string   `json:"description,omitempty"`
-	Tags                    []string `json:"tags,omitempty"`
-	CanSend                 bool     `json:"can_send,omitempty" api:"read-only"`
-	CanReceive              bool     `json:"can_receive,omitempty" api:"read-only"`
-	CanAccess               bool     `json:"can_access,omitempty"`
-	SpamAggressiveness      string   `json:"spam_aggressiveness,omitempty"`
-	GreylistingEnabled      bool     `json:"greylisting_enabled,omitempty"`
-	JunkSubjectKeywordSpam  bool     `json:"junk_subject_keyword_spam,omitempty"`
-	SubjectRewritingEnabled bool     `json:"subject_rewriting_enabled,omitempty"`
-	MXProxyEnabled          bool     `json:"mx_proxy_enabled,omitempty"`
-	HostedDNS               bool     `json:"hosted_dns,omitempty"`
-	SenderAllowlist         []string `json:"sender_allowlist,omitempty"`
-	SenderDenylist          []string `json:"sender_denylist,omitempty"`
-	RecipientDenylist       []string `json:"recipient_denylist,omitempty"`
-	CatchallDestinations    []string `json:"catchall_destinations,omitempty"`
+	Name                             string   `json:"name,omitempty" api:"create-only"`
+	ActivatedAt                      string   `json:"activated_at,omitempty" api:"read-only"`
+	DeactivatedAt                    string   `json:"deactivated_at,omitempty" api:"read-only"`
+	State                            string   `json:"state,omitempty" api:"read-only"`
+	Description                      string   `json:"description,omitempty"`
+	Tags                             []string `json:"tags,omitempty"`
+	CanSend                          bool     `json:"can_send,omitempty" api:"read-only"`
+	CanReceive                       bool     `json:"can_receive,omitempty" api:"read-only"`
+	CanAccess                        bool     `json:"can_access,omitempty" api:"read-only"`
+	SpamAggressiveness               string   `json:"spam_aggressiveness,omitempty"`
+	GreylistingEnabled               bool     `json:"greylisting_enabled,omitempty"`
+	JunkSubjectKeywordSpam           bool     `json:"junk_subject_keyword_spam,omitempty"`
+	SubjectRewritingEnabled          bool     `json:"subject_rewriting_enabled,omitempty"`
+	MXProxyEnabled                   bool     `json:"mx_proxy_enabled,omitempty"`
+	HostedDNS                        bool     `json:"hosted_dns,omitempty"`
+	MailboxDefaultImapEnabled        bool     `json:"mailbox_default_imap_enabled,omitempty"`
+	MailboxDefaultIncomingLimit      int      `json:"mailbox_default_incoming_limit,omitempty"`
+	MailboxDefaultManagesieveEnabled bool     `json:"mailbox_default_managesieve_enabled,omitempty"`
+	MailboxDefaultOutgoingLimit      int      `json:"mailbox_default_outgoing_limit,omitempty"`
+	MailboxDefaultPop3Enabled        bool     `json:"mailbox_default_pop3_enabled,omitempty"`
+	MailboxDefaultReceivingEnabled   bool     `json:"mailbox_default_receiving_enabled,omitempty"`
+	MailboxDefaultSendingEnabled     bool     `json:"mailbox_default_sending_enabled,omitempty"`
+	MailboxDefaultStorageLimit       int      `json:"mailbox_default_storage_limit,omitempty"`
+	SenderAllowlist                  []string `json:"sender_allowlist,omitempty"`
+	SenderDenylist                   []string `json:"sender_denylist,omitempty"`
+	RecipientDenylist                []string `json:"recipient_denylist,omitempty"`
+	CatchallDestinations             []string `json:"catchall_destinations,omitempty"`
 }
 
 // DNSRecord represents a DNS record needed for domain configuration.

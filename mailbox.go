@@ -38,6 +38,8 @@ type Mailbox struct {
 	ActivatedAt           string       `json:"activated_at,omitempty" api:"read-only"`
 	Address               string       `json:"address,omitempty" api:"read-only"`
 	ChangedAt             string       `json:"changed_at,omitempty" api:"read-only"`
+	DailyIncomingLimit    int          `json:"daily_incoming_limit,omitempty"`
+	DailyOutgoingLimit    int          `json:"daily_outgoing_limit,omitempty"`
 	Delegations           []string     `json:"delegations,omitempty"`
 	DomainName            string       `json:"domain_name,omitempty" api:"read-only"`
 	Expireable            bool         `json:"expireable,omitempty"`
@@ -48,6 +50,7 @@ type Mailbox struct {
 	ForwardingTo          string       `json:"forwarding_to,omitempty" api:"create-only"`
 	Forwardings           []Forwarding `json:"forwardings,omitempty"`
 	Identities            []Identity   `json:"identities,omitempty"`
+	IsActive              bool         `json:"is_active,omitempty" api:"read-only"`
 	IsInternal            bool         `json:"is_internal,omitempty"`
 	LastLoginAt           string       `json:"last_login_at,omitempty" api:"read-only"`
 	LocalPart             string       `json:"local_part,omitempty" api:"create-only"`
@@ -56,6 +59,8 @@ type Mailbox struct {
 	MayAccessPop3         bool         `json:"may_access_pop3,omitempty"`
 	MayReceive            bool         `json:"may_receive,omitempty"`
 	MaySend               bool         `json:"may_send,omitempty"`
+	MonthlyIncomingLimit  int          `json:"monthly_incoming_limit,omitempty"`
+	MonthlyOutgoingLimit  int          `json:"monthly_outgoing_limit,omitempty"`
 	Name                  string       `json:"name,omitempty"`
 	Password              string       `json:"password,omitempty"`
 	PasswordMethod        string       `json:"password_method,omitempty"`
@@ -67,6 +72,9 @@ type Mailbox struct {
 	SpamAction            string       `json:"spam_action,omitempty"`
 	SpamAggressiveness    string       `json:"spam_aggressiveness,omitempty"`
 	StorageUsage          float64      `json:"storage_usage,omitempty" api:"read-only"`
+	WeeklyIncomingLimit   int          `json:"weekly_incoming_limit,omitempty"`
+	WeeklyOutgoingLimit   int          `json:"weekly_outgoing_limit,omitempty"`
+	WildcardSender        bool         `json:"wildcard_sender,omitempty"`
 }
 
 // ListMailboxes lists all the mailboxes for the given domain.
