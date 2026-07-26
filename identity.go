@@ -6,6 +6,20 @@ import (
 	"fmt"
 )
 
+// validateIdentityPasswordUse validates password_use requirements for identities.
+func validateIdentityPasswordUse(i *Identity) error {
+	switch i.PasswordUse {
+	case "", "none", "mailbox":
+	case "custom":
+		if i.Password == "" {
+			return fmt.Errorf("password is required when password_use is 'custom'")
+		}
+	default:
+		return fmt.Errorf("password_use must be one of 'none', 'mailbox' or 'custom', got %q", i.PasswordUse)
+	}
+	return nil
+}
+
 // Identity represents an identity in the Migadu API.
 type Identity struct {
 	Address              string `json:"address,omitempty" api:"read-only"`
@@ -18,7 +32,7 @@ type Identity struct {
 	MaySend              bool   `json:"may_send,omitempty"`
 	Name                 string `json:"name,omitempty"`
 	Password             string `json:"password,omitempty"`
-	PasswordUse          string `json:"password_use,omitempty" api:"read-only"`
+	PasswordUse          string `json:"password_use,omitempty"`
 }
 
 // ListIdentities lists all the identities for the given domain and mailbox.
@@ -56,6 +70,10 @@ func (c *Client) GetIdentity(ctx context.Context, d *Domain, mb *Mailbox, i *Ide
 // NewIdentity creates a new identity.
 // It returns a pointer to an Identity struct and any error encountered.
 func (c *Client) NewIdentity(ctx context.Context, d *Domain, mb *Mailbox, i *Identity) (*Identity, error) {
+	if err := validateIdentityPasswordUse(i); err != nil {
+		return nil, err
+	}
+
 	transformed, err := Transform(*i, "create")
 	if err != nil {
 		return nil, err
@@ -79,6 +97,10 @@ func (c *Client) NewIdentity(ctx context.Context, d *Domain, mb *Mailbox, i *Ide
 // UpdateIdentity updates an identity in place given the domain, mailbox and a pointer to an Identity struct.
 // It returns a pointer to a new Identity struct and any error encountered.
 func (c *Client) UpdateIdentity(ctx context.Context, d *Domain, mb *Mailbox, i *Identity) (*Identity, error) {
+	if err := validateIdentityPasswordUse(i); err != nil {
+		return nil, err
+	}
+
 	transformed, err := Transform(*i, "update")
 	if err != nil {
 		return nil, err
